@@ -713,6 +713,12 @@ main > section { scroll-margin-top: calc(-1 * var(--anchor-offset)); }
   height: 100%;
   object-fit: cover;
 }
+/* A loaded portrait hides everything beneath it: skip painting the gradient, the inner shadow and the monogram. */
+.orb.has-photo {
+  background: #1a1410;
+  box-shadow: none;
+}
+.orb.has-photo .initials { display: none; }
 .initials {
   position: absolute;
   inset: 0;
@@ -1596,11 +1602,10 @@ main > section { scroll-margin-top: calc(-1 * var(--anchor-offset)); }
     linear-gradient(90deg, #3a3a40 0%, #6a6a71 1.6%, #2b2b30 4%, #1b1b1f 50%, #2b2b30 96%, #6a6a71 98.4%, #3a3a40 100%);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.16),
-    0 0 0 1px rgba(0, 0, 0, 0.55),
-    0 calc(var(--fw) * 0.004) calc(var(--fw) * 0.008) rgba(0, 0, 0, 0.16),
-    0 calc(var(--fw) * 0.03)  calc(var(--fw) * 0.06)  rgba(0, 0, 0, 0.16),
-    0 calc(var(--fw) * 0.08)  calc(var(--fw) * 0.16)  calc(var(--fw) * -0.02) rgba(0, 0, 0, 0.22),
-    0 calc(var(--fw) * 0.16)  calc(var(--fw) * 0.17)  calc(var(--fw) * -0.06) rgba(0, 0, 0, 0.2);   /* blur kept <= .17 fw: larger blurs get a visible hard cut-off in Chrome */
+    0 0 0 1px rgba(0, 0, 0, 0.55);
+  /* Performance: the stage behind the phone is always near-black, so the original soft drop shadows (four layers, blur up
+     to .17 fw) were invisible - but stacked with the rings they made this 3D-composited frame ~1.6x slower to draw in
+     Safari's engine. Only the two crisp edge rings remain. */
 }
 /* The black glass surround between the rim and the display. */
 .phone__frame::before {
@@ -3107,7 +3112,7 @@ main > section { scroll-margin-top: calc(-1 * var(--anchor-offset)); }
   border-radius: inherit;
   background: var(--pg);
   color: #fff;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 30px 60px -28px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.18) inset, 0 18px 32px -24px rgba(0, 0, 0, 0.7);   /* on near-black: a wide shadow is invisible but costly on iPhone */
 }
 .proj__card::before {                      /* scrim: keeps the copy readable on every gradient */
   content: "";
@@ -3838,6 +3843,37 @@ main > section { scroll-margin-top: calc(-1 * var(--anchor-offset)); }
   .chip-2 { top: 20%; right: -10%; }
   .chip-3 { bottom: 16%; left: -12%; }
   .chip-4 { bottom: 4%; right: -2%; }
+}
+
+
+/* ==========================================================================
+   21b PERFORMANCE: phones and tablets
+   Safari/iPhone redraws large soft shadows very slowly. Measured in WebKit: with the shadows of tiles, role cards and the
+   phone frame switched off, the Overview, Timeline and Skills scenes needed 2-3x less time per frame. On touch screens
+   the shared shadow tokens therefore use a small blur (same depth cue, a fraction of the cost). Desktop is unchanged.
+   Same selectors as the token definitions at the top (:root, [data-theme="dark"], .scene--dark) - later rule wins.
+   ========================================================================== */
+@media (hover: none), (max-width: 860px) {
+  /* --shadow (cards, tiles, chips): a crisp hairline instead of a blurred drop shadow - no blur to rasterise at all.
+     --shadow-lg (only the open mobile menu): a small, single blur. */
+  :root {
+    --shadow: 0 1px 0 rgba(28, 25, 23, 0.07), 0 0 0 1px rgba(28, 25, 23, 0.025);
+    --shadow-lg: 0 8px 20px -8px rgba(28, 25, 23, 0.2);
+  }
+  [data-theme="dark"] {
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 8px 20px -8px rgba(0, 0, 0, 0.6);
+  }
+  .scene--dark,
+  .tone-dark,
+  .site-header[data-tone="dark"] {
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 8px 20px -8px rgba(0, 0, 0, 0.65);
+  }
+
+  /* Less to composite per frame: the faint glass reflection over the phone screen and the second (16% opacity) hero glow. */
+  .phone__glare { display: none; }
+  .hero__glow--b { display: none; }
 }
 
 

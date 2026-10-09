@@ -608,6 +608,17 @@
       this.orbWrap = el.querySelector('.hero__orbwrap');
       this.dx = 0; this.dy = 0; this.dirty = true;
       this.out = false; this.gone = false;
+
+      // Performance: a loaded portrait covers the whole orb, so the gradient, the inner shadow and the monogram under it
+      // are never visible - mark the orb so CSS can skip painting them (Safari repaints them on every scroll frame).
+      // If the photo is missing (onerror removes the <img>) the class is never set and the monogram stays.
+      var photo = el.querySelector('.orb img');
+      if (photo) {
+        var mark = function () {
+          if (photo.naturalWidth > 0 && photo.parentNode) photo.parentNode.classList.add('has-photo');
+        };
+        if (photo.complete) mark(); else photo.addEventListener('load', mark);
+      }
     },
     measure: function (el, ctx) {
       // READ ONLY: untransformed centre of the orb relative to the stage, via offset* (ignores transforms)
@@ -839,7 +850,9 @@
       if (this.pose) {
         var enter = easeOut(seg(p, 0, 0.06));
         var exit = easeInOut(seg(p, 0.94, 1));
-        var live = enter * (1 - exit);
+        // The idle float keeps the phone's 3D transform changing on every scroll frame. That is cheap on a desktop GPU but
+        // costly on phones (the whole phone is re-composited in 3D each frame), so touch devices keep only enter / exit.
+        var live = (env.fine ? 1 : 0) * enter * (1 - exit);
         var ry = lerp(-18, 0, enter) + 16 * exit + Math.sin(p * 9.4) * 1.7 * live;
         var rx = lerp(6, 0, enter) - 5 * exit + Math.sin(p * 7 + 1) * 0.9 * live;
         var ty = Math.sin(p * 12.5) * 6 * live;
